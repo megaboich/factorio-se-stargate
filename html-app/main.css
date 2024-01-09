@@ -1,0 +1,25 @@
+body,
+html {
+	margin: 0;
+	padding: 0;
+	background-color: #000;
+	color: #fff;
+	font-family: Monospace;
+	font-size: 13px;
+	line-height: 24px;
+	overscroll-behavior: none;
+}
+
+#controls {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	background-color: black;
+	padding: 20px;
+}
+
+#controls button {
+	width: 32px;
+	font-weight: bold;
+	font-size: 150%;
+}
