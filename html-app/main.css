@@ -16,4 +16,8 @@ html {
 	bottom: 0;
 	background-color: black;
 	padding: 20px;
+
+	b {
+		color:aqua
+	}
 }
