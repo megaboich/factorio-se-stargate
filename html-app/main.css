@@ -17,9 +17,3 @@ html {
 	background-color: black;
 	padding: 20px;
 }
-
-#controls button {
-	width: 32px;
-	font-weight: bold;
-	font-size: 150%;
-}

@@ -13,21 +13,15 @@
     <div id="container"></div>
     <div id="controls">
         <div>
-            X: <button id="x-add">↓</button> <button id="x-sub">↑</button>
-        </div>
-        <div>
-            Y: <button id="y-sub">←</button> <button id="y-add">→</button>
-        </div>
-        <div>
-            Z: <button id="z-add">⟲</button> <button id="z-sub">⟳</button>
+            <button id="btn-reset-camera">Reset camera</button>
         </div>
     </div>
 
     <script type="importmap">
         {
             "imports": {
-                "three": "./html-app/lib/three/three.module.js",
-                "three/addons/": "./html-app/lib/three/addons/"
+                "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
             }
         }
     </script>
