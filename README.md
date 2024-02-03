@@ -2,6 +2,7 @@ Factorio Space Exploration mod is so awesome that it forced me to remember all t
 The game suggest to solve quite interesting puzzle in quite non-straightforward manned.
 While there are enough information to solve it I was able to find on Reddit, I still decided to write this article, mainly to show off my own interactive graphical way of solving it.
 
+https://github.com/megaboich/se-hypergate/assets/1382452/8a48e59f-e38b-4f2c-a0c9-6bf79a7af326
 
 ### Step 1: Inspect Ship log and figure out destination vector.
 
@@ -25,3 +26,7 @@ The game has 60 archaeological structures in total and they contain the pieces o
 This is a single piece of the puzzle:
 
 ![Map](./html-app/assets/mapped/40-RAEGIS.png)
+
+
+
+
