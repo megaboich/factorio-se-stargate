@@ -1,12 +1,22 @@
 import * as THREE from 'three';
-// import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
-import { FlyControls } from 'three/addons/controls/FlyControls.js';
+import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js';
 import { getPentakisDodecahedronGeometry } from './pentakis-dodecahedron-geometry.js';
-import { mappingData, ruinDiscoveryData, originalTargetVector, destinationVector, attempts } from './vector-data.js'
+import { mappingData, faceToGlyph, source, destination, attempt, pyramidTriangleIndexToGlyph } from './vector-data.js'
+import {
+    ensure,
+    breakTriangle,
+    findClosestFaceToPoint,
+    generateTextImage,
+    getFacesFromGeometry,
+    createLineSegment,
+    createSphere,
+    createSprite,
+    computeTriangleLineIntersection
+} from './helpers.js';
 
-/** @type {HTMLDivElement} */
+/** @type {HTMLElement} */
 let container;
-/** @type {THREE.Camera} */
+/** @type {THREE.PerspectiveCamera} */
 let camera;
 /** @type {THREE.Scene} */
 let scene;
@@ -18,158 +28,137 @@ let controls;
 
 const scale = 100;
 
-init();
+container = ensure(document.getElementById('container'));
+
+camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 10000);
+camera.position.z = 200;
+restoreCameraState();
+
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const geometrySphere = getPentakisDodecahedronGeometry(scale);
+const materialWireframe = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, wireframe: true });
+const meshWireframe = new THREE.Mesh(geometrySphere, materialWireframe);
+scene.add(meshWireframe);
+
+const allFaces = getFacesFromGeometry(geometrySphere);
+addGlyphs(faceToGlyph, allFaces);
+
+const destinationVector = new THREE.Vector3(...destination).multiplyScalar(scale);
+const attemptVector = new THREE.Vector3(...attempt).multiplyScalar(scale);
+const firstMappingPoint = new THREE.Vector3(...mappingData[0]).multiplyScalar(scale)
+
+const closestFaceIndex = findClosestFaceToPoint(allFaces, destinationVector);
+const closestFace = allFaces[closestFaceIndex];
+console.log("Closest face to destination 0 ", closestFaceIndex, closestFace);
+
+const destinationVectorIntersected = ensure(computeTriangleLineIntersection(closestFace[0], closestFace[1], closestFace[2], new THREE.Vector3(), destinationVector));
+renderFacetBreakdown(closestFace, destinationVectorIntersected, 1);
+
+//scene.add(createSprite(firstMappingPoint, generateTextImage("?", 96), 'lime'));
+
+renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+container.appendChild(renderer.domElement);
+
+// controls
+controls = new FlyControls(camera, renderer.domElement);
+controls.movementSpeed = 40;
+controls.domElement = renderer.domElement;
+controls.rollSpeed = Math.PI / 20;
+controls.autoForward = false;
+controls.dragToLook = true;
 animate();
+addEventHandlers();
+
+
+/** @type {THREE.Mesh} */
+let destIndicator;
+/** @type {THREE.Mesh} */
+let destIntersectedIndicator;
+/** @type {THREE.Mesh} */
+let attemptIndicator;
+function recreateDynamicEntities() {
+    const indicatorSize = 3 / camera.zoom;
+    /*
+    scene.remove(destIndicator);
+    destIndicator = createSphere(indicatorSize, destinationVector, 'yellow');
+    scene.add(destIndicator);
+*/
+    scene.remove(destIntersectedIndicator);
+    destIntersectedIndicator = createSphere(indicatorSize, destinationVectorIntersected, 'aqua');
+    scene.add(destIntersectedIndicator);
+
+    /*
+    scene.remove(attemptIndicator);
+    attemptIndicator = createSphere(indicatorSize, attemptVector, 'red');
+    scene.add(attemptIndicator);
+*/
+    controls.rollSpeed = Math.PI / (20 * camera.zoom);
+
+    ensure(document.getElementById("zoom-label")).innerText = String(Math.round(camera.zoom * 100) / 100);;
+}
+
+recreateDynamicEntities();
 
 /**
- * @param {Array<number[]>} mappingDataRaw
- * @param {Array<any[]>} ruinDiscoveryDataRaw
- * @param {THREE.BufferGeometry} sphereGeo
+ * @param {{[key: number]: string}} faceToGlyph
+ * @param {THREE.Vector3[][]} allFaces
  */
-function addGlyphs(mappingDataRaw, ruinDiscoveryDataRaw, sphereGeo) {
-    const mappedData = mappingDataRaw.map((entry, index) => {
-        const [x, y, z, file] = entry;
-        const pos = new THREE.Vector3(x, y, z);
-        pos.multiplyScalar(scale * 0.924);
-        return {
-            file,
-            pos,
-            index
-        }
-    });
-
-    const ruinData = ruinDiscoveryDataRaw.map((entry) => {
-        const [facetIndex, file] = entry;
-        return {
-            facetIndex,
-            file
-        }
-    })
-
-    let pos = sphereGeo.attributes.position.array;
-    let facesCount = pos.length / 9;
-    for (let facetIndex = 0; facetIndex < facesCount; facetIndex++) {
-        const a = new THREE.Vector3(pos[facetIndex * 9 + 0], pos[facetIndex * 9 + 1], pos[facetIndex * 9 + 2]);
-        const b = new THREE.Vector3(pos[facetIndex * 9 + 3], pos[facetIndex * 9 + 4], pos[facetIndex * 9 + 5]);
-        const c = new THREE.Vector3(pos[facetIndex * 9 + 6], pos[facetIndex * 9 + 7], pos[facetIndex * 9 + 8]);
+function addGlyphs(faceToGlyph, allFaces) {
+    for (let faceIndex = 0; faceIndex < allFaces.length; faceIndex++) {
+        const face = allFaces[faceIndex];
         // center is the average of three vertices
-        const center = a.clone().add(b).add(c).divideScalar(3);
+        const center = face[0].clone().add(face[1]).add(face[2]).divideScalar(3);
 
-        let spriteMaterial;
-        const matchedMapEntry = mappedData.find(x => {
-            const currPos = x.pos.clone();
-            const distV = currPos.sub(center);
-            const dist = distV.length();
-            return dist < 1;
-        });
-        if (matchedMapEntry) {
-            if (matchedMapEntry.file) {
-                spriteMaterial = new THREE.SpriteMaterial({
-                    map: new THREE.TextureLoader().load(`./html-app/assets/mapped/${matchedMapEntry.file}.png`),
-                    color: 0x99FF77,
-                });
-            } else {
-                spriteMaterial = new THREE.SpriteMaterial({
-                    map: new THREE.TextureLoader().load(generateTextImage("M" + matchedMapEntry.index.toString())),
-                    color: 0x00FF00,
-                });
-            }
+        const matchedGlyph = faceToGlyph[faceIndex];
+        if (matchedGlyph) {
+            scene.add(createSprite(center, `./html-app/assets/mapped/${matchedGlyph}.png`, 'yellow'));
         } else {
-            const matchedRuinData = ruinData.find(x => x.facetIndex === facetIndex);
-            if (matchedRuinData) {
-                spriteMaterial = new THREE.SpriteMaterial({
-                    map: new THREE.TextureLoader().load(`./html-app/assets/mapped/${matchedRuinData.file}.png`),
-                    color: 0xFF8855,
-                });
-            }
+            scene.add(createSprite(center, generateTextImage(faceIndex.toString()), 'aqua', 8));
         }
-
-        if (!spriteMaterial)
-            spriteMaterial = new THREE.SpriteMaterial({
-                map: new THREE.TextureLoader().load(generateTextImage("F" + facetIndex.toString())),
-                color: 0xFF0000,
-            });
-
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.position.set(center.x, center.y, center.z);
-        sprite.scale.set(20, 20, 20);
-        scene.add(sprite);
     }
 }
 
 /**
- * @param {number[]} coord 
- * @param {number} color 
+ * 
+ * @param {[THREE.Vector3, THREE.Vector3, THREE.Vector3]} face 
+ * @param {THREE.Vector3} destinationVector
+ * @param {number} level
  */
-function addLittleSphere(coords, color) {
-    const [x, y, z] = coords;
-    const material = new THREE.MeshBasicMaterial({ color });
-    const geometry = new THREE.SphereGeometry(1);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x * scale, y * scale, z * scale);
-    scene.add(mesh);
+function renderFacetBreakdown(face, destinationVector, level) {
+    if (level < 8) {
+        const subs = breakTriangle(...face);
+        for (let subIndex = 0; subIndex < subs.length; ++subIndex) {
+            const sub = subs[subIndex];
+            scene.add(createLineSegment(sub[0], sub[1], 'red'));
+            scene.add(createLineSegment(sub[0], sub[2], 'red'));
+            scene.add(createLineSegment(sub[1], sub[2], 'red'));
+
+            const faceCenter = sub[0].clone().add(sub[1]).add(sub[2]).divideScalar(3);
+
+            const dist = faceCenter.clone().sub(destinationVector).length();
+            const label = level === 30
+                ? Math.round(dist * 1000).toString()
+                : subIndex.toString();
+
+            if (pyramidTriangleIndexToGlyph[subIndex]) {
+                scene.add(createSprite(faceCenter, `./html-app/assets/mapped/${pyramidTriangleIndexToGlyph[subIndex]}.png`, 'white', 4 / (Math.pow(8, level - 1))));
+            } else {
+                scene.add(createSprite(faceCenter, generateTextImage(label, 32), 'white', 2 / (Math.pow(8, level - 1))));
+            }
+        }
+
+        const closestFaceIndex = findClosestFaceToPoint(subs, destinationVector);
+        const closestFace = subs[closestFaceIndex];
+        console.log("Closest face to destination " + level, closestFaceIndex, closestFace);
+
+        renderFacetBreakdown(closestFace, destinationVector, level + 1);
+    }
 }
 
-function init() {
-    container = document.getElementById('container');
-
-    camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 10000);
-    camera.position.z = 200;
-    restoreCameraState();
-
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    // camera.lookAt(scene.position);
-
-    const geometrySphere = getPentakisDodecahedronGeometry(scale);
-    const materialWireframe = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, wireframe: true });
-    const meshWireframe = new THREE.Mesh(geometrySphere, materialWireframe);
-    scene.add(meshWireframe);
-
-    addGlyphs(mappingData, ruinDiscoveryData, geometrySphere, scene);
-
-    addLittleSphere(originalTargetVector, 0x0055FF);
-    addLittleSphere(destinationVector, 0xffff00);
-    addLittleSphere(attempts[0], 0xff0000);
-
-    const axesHelper = new THREE.AxesHelper(200);
-    scene.add(axesHelper);
-
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
-
-    // controls
-    controls = new FlyControls(camera, renderer.domElement);
-    controls.movementSpeed = 50;
-    controls.domElement = renderer.domElement;
-    controls.rollSpeed = Math.PI / 24;
-    controls.autoForward = false;
-    controls.dragToLook = true;
-    controls.addEventListener('change', saveCameraState);
-
-    //
-    window.addEventListener('resize', onWindowResize);
-
-    document.getElementById('btn-reset-camera-outside').addEventListener('click', () => {
-        camera.position.set(0, 0, 200);
-        camera.rotation.set(0, 0, 0);
-        render();
-    });
-
-    document.getElementById('btn-reset-camera-inside').addEventListener('click', () => {
-        camera.position.set(0, 0, 0);
-        camera.rotation.set(0, 0, 0);
-        render();
-    })
-}
-
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -193,7 +182,8 @@ function saveCameraState() {
             x: camera.rotation.x,
             y: camera.rotation.y,
             z: camera.rotation.z,
-        }
+        },
+        zoom: camera.zoom
     };
     window.localStorage.setItem("CAMERA", JSON.stringify(state));
 }
@@ -205,29 +195,60 @@ function restoreCameraState() {
         const state = JSON.parse(json);
         camera.rotation.set(state.rotation.x, state.rotation.y, state.rotation.z)
         camera.position.set(state.position.x, state.position.y, state.position.z);
+        camera.zoom = state.zoom;
+        camera.updateProjectionMatrix();
     }
 }
 
-function generateTextImage(text, fontSize = 48, color = 'white') {
-    // Create a canvas element
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+function addEventHandlers() {
+    controls.addEventListener('change', saveCameraState);
 
-    // Set font and measure text size
-    context.font = `normal 100 ${fontSize}px Arial`;
-    const textSize = context.measureText(text);
+    //
+    window.addEventListener('resize', onWindowResize);
 
-    // Set canvas dimensions
-    canvas.width = textSize.width + 100;
-    canvas.height = fontSize + 100;
+    ensure(document.getElementById('btn-reset-camera-outside'))
+        .addEventListener('click', () => {
+            camera.position.set(0, 0, 200);
+            camera.rotation.set(0, 0, 0);
+            camera.zoom = 1;
+            camera.updateProjectionMatrix();
+            recreateDynamicEntities()
+        });
 
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.font = `normal 100 ${fontSize}px Arial`;
-    context.fillStyle = color;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
+    ensure(document.getElementById('btn-move-camera-inside'))
+        .addEventListener('click', () => {
+            function stepMove() {
+                const d = camera.position.distanceTo(new THREE.Vector3());
+                if (d > 5) {
+                    const step = new THREE.Vector3().lerpVectors(camera.position, new THREE.Vector3(), 0.1);
+                    camera.position.copy(step);
+                    camera.updateProjectionMatrix();
+                    setTimeout(stepMove, 100);
+                } else {
+                    camera.position.set(0, 0, 0);
+                    camera.updateProjectionMatrix();
+                }
+            }
+            stepMove();
+        })
+    ensure(document.getElementById('btn-zoom-in'))
+        .addEventListener('click', () => {
+            camera.zoom *= 1.2;
+            camera.updateProjectionMatrix();
+            saveCameraState();
+            recreateDynamicEntities();
+        })
+    ensure(document.getElementById('btn-zoom-out'))
+        .addEventListener('click', () => {
+            camera.zoom /= 1.2;
+            camera.updateProjectionMatrix();
+            saveCameraState();
+            recreateDynamicEntities();
+        })
+}
 
-    // Return the canvas element
-    return canvas.toDataURL('image/png');
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }

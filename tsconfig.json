@@ -1,0 +1,31 @@
+{
+	"include": [
+		"html-app/"
+	],
+	"compilerOptions": {
+		// Target latest version of ECMAScript.
+		"target": "esnext",
+		// Process & infer types from .js files.
+		"allowJs": true,
+		// Enable error reporting in type-checked JavaScript files.
+		"checkJs": true,
+		// Don't emit; it is a JavaScript already
+		"noEmit": true,
+		// Yes, we want to be strict
+		"strict": true,
+		// enable the JSX and ignore transformations on it.
+		"jsx": "preserve",
+		"moduleResolution": "node",
+		"skipLibCheck": true,
+		/**
+		* Allows to write an import like `import orderBy from 'lodash/orderBy'`
+		* when the module does not explicitly specify a default export.
+		*/
+		"allowSyntheticDefaultImports": true,
+		/**
+		* Allows importing modules with a ‘.json’ extension, which is a common practice in node projects.
+		* This includes generating a type for the import based on the static JSON shape.
+		*/
+		"resolveJsonModule": true,
+	},
+}

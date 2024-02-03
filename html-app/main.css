@@ -20,4 +20,8 @@ html {
 	b {
 		color:aqua
 	}
+
+	#btn-zoom-in, #btn-zoom-out {
+		font-size: 18px;
+	}
 }

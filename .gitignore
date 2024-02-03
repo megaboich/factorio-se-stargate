@@ -1,1 +1,4 @@
 html-app/assets/.DS_Store
+.DS_Store
+package-lock.json
+node_modules/
