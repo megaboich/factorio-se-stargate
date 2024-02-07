@@ -41,6 +41,12 @@ This research connects symbols with specific coordinates on the shape, intersect
 
 Using circular diagrams, match all required faces with known symbols. Each diagram shows neighboring faces as seen from inside the Dodecahedron.
 
+
+
+https://github.com/megaboich/se-hypergate/assets/1382452/522574ab-5a40-427a-b5d0-018aac73d157
+
+
+
 ### Step 3: Build a Triangular Map for Precision Location
 
 To specify the target coordinates more precisely, split each triangular face into 64 smaller triangles. Identify each smaller triangle with the Star Gate using one of 60 symbols used for Dodecahedron faces, plus 4 additional symbols for corners and the center.
@@ -58,15 +64,15 @@ When combining all those small puzzle chains into the big picture the whole map 
 ![](/docs/triangular-puzzle-overview.png)
 ### Step 4: Find Corresponding Symbols for the Star Gate
 
-The Star Gate accepts 8 symbols to specify target vector destination. The first symbol defines the Dodecahedron facet, the second defines the sub-triangle, and subsequent symbols define further sub-triangles.
+The Star Gate accepts 8 symbols to specify the target vector destination. The first symbol defines the Dodecahedron facet, the second defines the sub-triangle, and subsequent symbols define further sub-triangles.
 
 So the algorithm could be as straightforward as this:
 1) Find the closest facet to your destination point.
-2) Facet index is your first symbol to enter into star gate.
-3) Find the intersection point of you destination vector with the facet surface.
-4) Find the closets sub-triangle index to your intersection point relative to your current triangle.
+2) Facet index is your first symbol to enter into the star gate.
+3) Find the intersection point of your destination vector with the facet surface.
+4) Find the closest sub-triangle index to your intersection point relative to your current triangle.
 5) Sub-triangle index is the next symbol to enter into Star Gate.
-6) Go step #3 but with newly obtained triangle each step.
+6) Go to step #3 but with a newly obtained triangle for each step.
 
 ### Step 5: Enter Symbols into the Star Gate and Fine-Tune
 
