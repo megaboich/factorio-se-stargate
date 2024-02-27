@@ -18,7 +18,7 @@ Here's the key information: the vector used to reach the gate:
 [0.37166940297185, -0.036043090065277, 0.927665214693911]
 ```
 
-To return, use the reverse vector:
+So, it seems that for the player to return to his home world the reverse vector should be targeted:
 ```
 [-0.37166940297185, 0.036043090065277, -0.927665214693911]
 ```
