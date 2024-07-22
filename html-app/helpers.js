@@ -38,14 +38,19 @@ export function getFacesFromGeometry(geometry) {
  * @param {THREE.Vector3} point 
  */
 export function findClosestFaceToPoint(faces, point) {
+    let minDistance = Number.POSITIVE_INFINITY;
+    let minIndex = -1;
     for (let faceIndex = 0; faceIndex < faces.length; faceIndex++) {
         const face = faces[faceIndex];
-        const subTriangle = new THREE.Triangle(...face);
-        if (subTriangle.containsPoint(point)) {
-            return faceIndex;
+        const faceTriangle = new THREE.Triangle(...face);
+        const center = faceTriangle.getMidpoint(new THREE.Vector3());
+        const distance = center.distanceTo(point);
+        if (distance < minDistance) {
+            minDistance = distance;
+            minIndex = faceIndex;
         }
     }
-    return 0;
+    return minIndex;
 }
 
 /**
